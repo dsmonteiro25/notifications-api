@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Notificacao {
+  id_notificacao Int      @id @default(autoincrement())
+  user_id        Int
+  type           String
+  message        String
+  read_status    Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  @@map("notificacoes")
+}

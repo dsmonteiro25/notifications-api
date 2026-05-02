@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: notifications_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_DB: notifications
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - leilao_network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: notifications_rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      - leilao_network
+
+  redis:
+    image: redis:7
+    container_name: notifications_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - leilao_network
+
+  notifications-api:
+    build: .
+    # Note que removemos o "container_name" e as "ports" fixas para não dar conflito entre as 3 instâncias
+    environment:
+      - DATABASE_URL=postgresql://root:rootpassword@postgres:5432/notifications?schema=public
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+    networks:
+      - leilao_network
+    deploy:
+      replicas: 3 # A mágica da escalabilidade acontece aqui!
+
+  nginx:
+    image: nginx:latest
+    container_name: notifications_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "3000:80" # O seu PC aponta para o Nginx na porta 3000
+    depends_on:
+      - notifications-api
+    networks:
+      - leilao_network
+
+volumes:
+  postgres_data:
+
+networks:
+  leilao_network:
+    driver: bridge
